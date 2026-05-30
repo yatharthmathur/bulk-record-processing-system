@@ -12,6 +12,12 @@ class Settings:
     concurrent_requests: int = 5
     http_timeout_seconds: float = 15.0
     batch_task_backend: str = "in_memory"
+    batch_repository_backend: str = "in_memory"
+    redis_url: str = "redis://redis:6379/0"
+    redis_batch_key_prefix: str = "batch"
+    celery_broker_url: str = "redis://redis:6379/1"
+    celery_result_backend_url: str = "redis://redis:6379/2"
+    celery_queue_name: str = "bulk_hospital_jobs"
     retry_max_attempts: int = 3
     retry_initial_delay_seconds: float = 0.25
     retry_backoff_multiplier: float = 2.0
@@ -36,6 +42,22 @@ class Settings:
             ),
             batch_task_backend=os.getenv(
                 "BATCH_TASK_BACKEND", defaults.batch_task_backend
+            ),
+            batch_repository_backend=os.getenv(
+                "BATCH_REPOSITORY_BACKEND", defaults.batch_repository_backend
+            ),
+            redis_url=os.getenv("REDIS_URL", defaults.redis_url),
+            redis_batch_key_prefix=os.getenv(
+                "REDIS_BATCH_KEY_PREFIX", defaults.redis_batch_key_prefix
+            ),
+            celery_broker_url=os.getenv(
+                "CELERY_BROKER_URL", defaults.celery_broker_url
+            ),
+            celery_result_backend_url=os.getenv(
+                "CELERY_RESULT_BACKEND_URL", defaults.celery_result_backend_url
+            ),
+            celery_queue_name=os.getenv(
+                "CELERY_QUEUE_NAME", defaults.celery_queue_name
             ),
             retry_max_attempts=int(
                 os.getenv("RETRY_MAX_ATTEMPTS", str(defaults.retry_max_attempts))

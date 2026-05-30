@@ -8,8 +8,9 @@ A FastAPI service for bulk hospital creation against the external Hospital Direc
 - `POST /hospitals/bulk` accepts a CSV upload and queues bulk processing in the background
 - Concurrent upstream hospital creation for faster throughput
 - Automatic retries with exponential backoff for hospital creation and batch activation
-- Configurable task-dispatch port so the background runner can be replaced with Celery, SQS + workers, or another queue backend
-- In-memory batch tracking with `GET /batches/{batch_id}`
+- Configurable task-dispatch port with built-in `in_memory` and `celery` backends
+- Configurable batch repository port with built-in `in_memory` and `redis` backends
+- Batch tracking with `GET /batches/{batch_id}`
 - CSV validation is built directly into `POST /hospitals/bulk`
 - Ports and adapters architecture with clear separation between domain, application, API, and infrastructure
 - Docker, `uv`, and pre-commit support
@@ -25,7 +26,7 @@ app/
     services/         Reusable application services (CSV parsing, retry policy)
     use_cases/        Submit batch, process batch, validate CSV, get status
   domain/             Core models and domain exceptions
-  infrastructure/     External API adapter, settings, repository, task dispatcher
+  infrastructure/     External API adapter, settings, repository, serialization, task dispatcher
 ```
 
 ### Background processing flow
@@ -48,9 +49,17 @@ The app now separates **submission** from **execution**:
 - `BulkCreateHospitalsUseCase` performs the actual processing
 - `BatchTaskDispatcher` is the port for the execution backend
 
-The built-in adapter is `InMemoryBackgroundBatchTaskDispatcher`, which runs jobs in-process using `asyncio.create_task(...)`.
+Built-in task dispatcher adapters:
+- `InMemoryBackgroundBatchTaskDispatcher`
+- `CeleryBatchTaskDispatcher`
 
-To move to Celery, SQS + workers, Redis Queue, or another execution system, implement the `BatchTaskDispatcher` port and wire it in `app/bootstrap.py`.
+Built-in batch repository adapters:
+- `InMemoryBatchRepository`
+- `RedisBatchRepository`
+
+The Celery worker entrypoint lives in `app/worker/celery_app.py` and consumes jobs from Redis-backed Celery queues.
+
+To move to SQS + workers, Redis Queue, or another execution system, implement the `BatchTaskDispatcher` port and wire it in `app/bootstrap.py`.
 
 ## CSV format
 
@@ -120,6 +129,29 @@ uv run pre-commit install --hook-type pre-push
 uv run uvicorn app.main:app --reload
 ```
 
+### 4. Run Redis and a Celery worker
+
+If you want to use the Celery + Redis execution path locally, start Redis first and then run the worker with the same environment variables the API uses.
+
+Example:
+
+```bash
+export BATCH_TASK_BACKEND=celery
+export BATCH_REPOSITORY_BACKEND=redis
+export REDIS_URL=redis://localhost:6379/0
+export REDIS_BATCH_KEY_PREFIX=batch
+export CELERY_BROKER_URL=redis://localhost:6379/1
+export CELERY_RESULT_BACKEND_URL=redis://localhost:6379/2
+export CELERY_QUEUE_NAME=bulk_hospital_jobs
+uv run celery -A app.worker.celery_app.celery_app worker --loglevel=info --queues=bulk_hospital_jobs
+```
+
+If Redis is running in Docker, a simple option is:
+
+```bash
+docker run --rm -p 6379:6379 redis:7-alpine
+```
+
 Open Swagger UI at `http://localhost:8000/docs`.
 
 ## Quality tooling
@@ -147,6 +179,21 @@ uv run pre-commit run --all-files --hook-stage pre-push
 docker compose up --build
 ```
 
+This starts:
+- `redis`
+- `bulk-hospital-service`
+- `bulk-hospital-worker`
+
+The Compose setup uses:
+- `BATCH_TASK_BACKEND=celery`
+- `BATCH_REPOSITORY_BACKEND=redis`
+
+If you only want to run the worker explicitly, you can also use:
+
+```bash
+docker compose up --build redis bulk-hospital-worker
+```
+
 ## Configuration
 
 The project uses `uv` with `pyproject.toml` and `uv.lock` to keep local and container environments aligned.
@@ -159,6 +206,12 @@ Environment variables:
 - `CONCURRENT_REQUESTS`
 - `HTTP_TIMEOUT_SECONDS`
 - `BATCH_TASK_BACKEND`
+- `BATCH_REPOSITORY_BACKEND`
+- `REDIS_URL`
+- `REDIS_BATCH_KEY_PREFIX`
+- `CELERY_BROKER_URL`
+- `CELERY_RESULT_BACKEND_URL`
+- `CELERY_QUEUE_NAME`
 - `RETRY_MAX_ATTEMPTS`
 - `RETRY_INITIAL_DELAY_SECONDS`
 - `RETRY_BACKOFF_MULTIPLIER`
@@ -166,6 +219,11 @@ Environment variables:
 
 Built-in task backend values:
 - `in_memory`
+- `celery`
+
+Built-in repository backend values:
+- `in_memory`
+- `redis`
 
 ## Testing
 
@@ -176,6 +234,7 @@ uv run pytest
 
 ## Notes
 
-- Batch storage is still in memory, so batch history is lost when the service restarts.
-- The default dispatcher is in-process background execution. For production-scale reliability, a durable queue adapter such as Celery or SQS workers is recommended.
+- The codebase supports in-memory and Redis-backed batch state storage.
+- The codebase supports in-process background execution and Celery worker execution.
+- The default Python settings remain conservative (`in_memory`) for local simplicity, while `docker-compose.yml` is configured to run Redis + Celery.
 - Because the upstream API does not expose rollback semantics, partial failures can leave some hospitals created upstream but not activated.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import cast
 
 import httpx
 
@@ -16,16 +17,22 @@ from app.application.use_cases.submit_bulk_create_hospitals import (
     SubmitBulkCreateHospitalsUseCase,
 )
 from app.domain.models import BulkCreateBatchJob
+from app.infrastructure.bootstrap_support import (
+    build_batch_repository,
+    build_http_client,
+)
 from app.infrastructure.clients.hospital_directory_api import (
     HospitalDirectoryApiGateway,
 )
-from app.infrastructure.repositories.in_memory_batch_repository import (
-    InMemoryBatchRepository,
-)
 from app.infrastructure.settings import Settings
+from app.infrastructure.task_dispatchers.celery import (
+    CeleryBatchTaskDispatcher,
+    CeleryTaskSender,
+)
 from app.infrastructure.task_dispatchers.in_memory import (
     InMemoryBackgroundBatchTaskDispatcher,
 )
+from app.worker.celery_app import TASK_NAME, celery_app
 
 
 @dataclass(slots=True)
@@ -42,11 +49,8 @@ class AppContainer:
 
 async def build_container(settings: Settings | None = None) -> AppContainer:
     app_settings = settings or Settings.from_env()
-    http_client = httpx.AsyncClient(
-        base_url=app_settings.external_api_base_url,
-        timeout=app_settings.http_timeout_seconds,
-    )
-    batch_repository = InMemoryBatchRepository()
+    http_client = build_http_client(app_settings)
+    batch_repository = build_batch_repository(app_settings)
     hospital_directory_gateway = HospitalDirectoryApiGateway(http_client)
     csv_parser = CsvHospitalParser(max_hospitals=app_settings.max_csv_hospitals)
     retry_executor = AsyncRetryExecutor(
@@ -68,7 +72,7 @@ async def build_container(settings: Settings | None = None) -> AppContainer:
         _ = await bulk_create_hospitals_use_case.execute(job)
 
     batch_task_dispatcher = _build_batch_task_dispatcher(
-        backend=app_settings.batch_task_backend,
+        settings=app_settings,
         handler=process_job,
     )
 
@@ -91,21 +95,27 @@ async def build_container(settings: Settings | None = None) -> AppContainer:
 
 
 def _build_batch_task_dispatcher(
-    backend: str,
+    settings: Settings,
     handler: Callable[[BulkCreateBatchJob], Awaitable[None]],
 ) -> BatchTaskDispatcher:
-    normalized_backend = backend.strip().lower()
+    normalized_backend = settings.batch_task_backend.strip().lower()
     if normalized_backend == "in_memory":
         return InMemoryBackgroundBatchTaskDispatcher(handler)
+    if normalized_backend == "celery":
+        return CeleryBatchTaskDispatcher(
+            celery_app=cast(CeleryTaskSender, cast(object, celery_app)),
+            task_name=TASK_NAME,
+            queue_name=settings.celery_queue_name,
+        )
 
     raise ValueError(
         "Unsupported batch task backend "
-        + f"'{backend}'. Implement the BatchTaskDispatcher port for "
-        + "Celery, SQS, or another worker backend."
+        + f"'{settings.batch_task_backend}'. Use 'in_memory' or 'celery'."
     )
 
 
 async def shutdown_container(container: AppContainer) -> None:
     await container.batch_task_dispatcher.shutdown()
+    await container.batch_repository.shutdown()
     if container.http_client is not None:
         await container.http_client.aclose()

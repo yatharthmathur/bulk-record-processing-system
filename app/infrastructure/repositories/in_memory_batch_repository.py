@@ -23,3 +23,7 @@ class InMemoryBatchRepository(BatchRepository):
     async def get(self, batch_id: UUID) -> BatchSnapshot | None:
         async with self._lock:
             return self._items.get(batch_id)
+
+    @override
+    async def shutdown(self) -> None:
+        return None
