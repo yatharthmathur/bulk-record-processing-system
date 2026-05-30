@@ -94,8 +94,13 @@ class BulkCreateUseCase:
             started_at=existing_snapshot.started_at,
             completed_at=completed_at,
             processing_time_seconds=processing_time_seconds,
+            file_md5=existing_snapshot.file_md5,
         )
         await self._batch_repository.save(final_snapshot)
+        if final_snapshot.file_md5 is not None:
+            await self._batch_repository.release_file_md5(
+                final_snapshot.file_md5, final_snapshot.batch_id
+            )
         return final_snapshot
 
     async def _create_hospitals(

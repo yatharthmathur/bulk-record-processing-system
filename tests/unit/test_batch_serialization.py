@@ -46,6 +46,7 @@ def test_batch_snapshot_serialization_round_trip() -> None:
         started_at=datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC),
         completed_at=datetime(2026, 5, 30, 12, 0, 5, tzinfo=UTC),
         processing_time_seconds=5.0,
+        file_md5="abc123deadbeef",
     )
 
     serialized = batch_snapshot_to_dict(snapshot)

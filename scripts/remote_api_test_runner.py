@@ -206,6 +206,90 @@ def run() -> list[CaseResult]:
             )
         )
 
+        duplicate_csv = (
+            "name,address,phone\n"
+            f"Remote Dedup Test {unique_suffix},456 Duplicate Lane,555-0002\n"
+        )
+        first_duplicate = post_csv(client, "duplicate-a.csv", duplicate_csv)
+        second_duplicate = post_csv(client, "duplicate-b.csv", duplicate_csv)
+        first_duplicate_payload = parse_response(first_duplicate)
+        second_duplicate_payload = parse_response(second_duplicate)
+        first_duplicate_object: JSONObject | None = None
+        duplicate_passed = (
+            first_duplicate.status_code == 202
+            and second_duplicate.status_code == 202
+            and is_json_object(first_duplicate_payload)
+            and is_json_object(second_duplicate_payload)
+        )
+        if duplicate_passed:
+            first_duplicate_object = require_json_object(
+                first_duplicate_payload,
+                context="first duplicate submit response",
+            )
+            second_duplicate_object = require_json_object(
+                second_duplicate_payload,
+                context="second duplicate submit response",
+            )
+            duplicate_passed = (
+                first_duplicate_object["batch_id"]
+                == second_duplicate_object["batch_id"]
+            )
+
+        final_duplicate_payload: JSONValue = None
+        final_duplicate_status_code: int | None = None
+        resubmit_duplicate_payload: JSONValue = None
+        if duplicate_passed and first_duplicate_object is not None:
+            batch_id = str(first_duplicate_object["batch_id"])
+            final_duplicate = poll_batch_until_finished(client, batch_id)
+            final_duplicate_status_code = final_duplicate.status_code
+            final_duplicate_payload = parse_response(final_duplicate)
+            duplicate_passed = (
+                final_duplicate.status_code == 200
+                and is_json_object(final_duplicate_payload)
+                and final_duplicate_payload.get("status") == "completed"
+                and final_duplicate_payload.get("processed_hospitals") == 1
+                and final_duplicate_payload.get("failed_hospitals") == 0
+            )
+
+            resubmit_duplicate = post_csv(
+                client, "duplicate-resubmit.csv", duplicate_csv
+            )
+            resubmit_duplicate_payload = parse_response(resubmit_duplicate)
+            if duplicate_passed and is_json_object(resubmit_duplicate_payload):
+                duplicate_passed = (
+                    resubmit_duplicate.status_code == 202
+                    and resubmit_duplicate_payload["batch_id"] != batch_id
+                )
+            else:
+                duplicate_passed = False
+
+        results.append(
+            CaseResult(
+                name="duplicate_in_flight_upload_returns_same_batch",
+                passed=duplicate_passed,
+                summary=(
+                    "Identical CSV uploads while in-flight deduplicate to one batch; "
+                    "after completion the same file can be submitted again."
+                ),
+                request_description=(
+                    "POST /hospitals/bulk twice with identical CSV bytes, poll batch, "
+                    "then POST the same CSV again"
+                ),
+                expected=(
+                    "Both initial submits return 202 with the same batch_id; polled "
+                    "batch completes once; third submit returns 202 with a new batch_id"
+                ),
+                actual_status_code=final_duplicate_status_code
+                or second_duplicate.status_code,
+                actual_response={
+                    "first_submit": first_duplicate_payload,
+                    "second_submit": second_duplicate_payload,
+                    "final": final_duplicate_payload,
+                    "resubmit_after_terminal": resubmit_duplicate_payload,
+                },
+            )
+        )
+
         invalid_header = post_csv(
             client,
             "invalid-header.csv",

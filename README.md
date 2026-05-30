@@ -11,6 +11,7 @@ A FastAPI service for bulk hospital creation against the external Hospital Direc
 - Configurable task-dispatch port with built-in `in_memory` and `celery` backends
 - Configurable batch repository port with built-in `in_memory` and `redis` backends
 - Batch tracking with `GET /batches/{batch_id}`
+- In-flight deduplication by file MD5 on `POST /hospitals/bulk` (duplicate uploads return the existing batch until processing finishes)
 - CSV validation is built directly into `POST /hospitals/bulk`
 - Ports and adapters architecture with clear separation between domain, application, API, and infrastructure
 - Docker, `uv`, and pre-commit support
@@ -98,6 +99,8 @@ Health check.
 Multipart form upload with a `file` field.
 
 This endpoint now returns `202 Accepted` after the batch is queued.
+
+Duplicate uploads of the same CSV bytes while a batch is still `queued` or `processing` are deduplicated by MD5 and return the existing batch without enqueueing another job. After the batch reaches a terminal status, the same file may be submitted again as a new batch.
 
 Example response:
 
