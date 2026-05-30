@@ -1,0 +1,15 @@
+services:
+  bulk-hospital-service:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      EXTERNAL_API_BASE_URL: https://hospital-directory.onrender.com
+      MAX_CSV_HOSPITALS: 20
+      CONCURRENT_REQUESTS: 5
+      HTTP_TIMEOUT_SECONDS: 15
+      BATCH_TASK_BACKEND: in_memory
+      RETRY_MAX_ATTEMPTS: 3
+      RETRY_INITIAL_DELAY_SECONDS: 0.25
+      RETRY_BACKOFF_MULTIPLIER: 2.0
+      RETRY_MAX_DELAY_SECONDS: 2.0
