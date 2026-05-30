@@ -1,6 +1,13 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   bulk-hospital-service:
     build: .
+    depends_on:
+      - redis
     ports:
       - "8000:8000"
     environment:
@@ -8,7 +15,45 @@ services:
       MAX_CSV_HOSPITALS: 20
       CONCURRENT_REQUESTS: 5
       HTTP_TIMEOUT_SECONDS: 15
-      BATCH_TASK_BACKEND: in_memory
+      BATCH_TASK_BACKEND: celery
+      BATCH_REPOSITORY_BACKEND: redis
+      REDIS_URL: redis://redis:6379/0
+      REDIS_BATCH_KEY_PREFIX: batch
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND_URL: redis://redis:6379/2
+      CELERY_QUEUE_NAME: bulk_hospital_jobs
+      RETRY_MAX_ATTEMPTS: 3
+      RETRY_INITIAL_DELAY_SECONDS: 0.25
+      RETRY_BACKOFF_MULTIPLIER: 2.0
+      RETRY_MAX_DELAY_SECONDS: 2.0
+
+  bulk-hospital-worker:
+    build: .
+    depends_on:
+      - redis
+    command:
+      [
+        "uv",
+        "run",
+        "celery",
+        "-A",
+        "app.worker.celery_app.celery_app",
+        "worker",
+        "--loglevel=info",
+        "--queues=bulk_hospital_jobs",
+      ]
+    environment:
+      EXTERNAL_API_BASE_URL: https://hospital-directory.onrender.com
+      MAX_CSV_HOSPITALS: 20
+      CONCURRENT_REQUESTS: 5
+      HTTP_TIMEOUT_SECONDS: 15
+      BATCH_TASK_BACKEND: celery
+      BATCH_REPOSITORY_BACKEND: redis
+      REDIS_URL: redis://redis:6379/0
+      REDIS_BATCH_KEY_PREFIX: batch
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND_URL: redis://redis:6379/2
+      CELERY_QUEUE_NAME: bulk_hospital_jobs
       RETRY_MAX_ATTEMPTS: 3
       RETRY_INITIAL_DELAY_SECONDS: 0.25
       RETRY_BACKOFF_MULTIPLIER: 2.0
