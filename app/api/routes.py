@@ -6,14 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.api.dependencies import get_container
-from app.api.schemas import (
-    BatchResponse,
-    CsvValidationResponse,
-    HealthResponse,
-    HospitalResultResponse,
-)
+from app.api.schemas import BatchResponse, HealthResponse, HospitalResultResponse
 from app.bootstrap import AppContainer
-from app.domain.models import BatchSnapshot, CsvValidationSummary
+from app.domain.models import BatchSnapshot
 
 router = APIRouter()
 
@@ -33,19 +28,6 @@ async def bulk_create_hospitals(
     raw_csv = await file.read()
     snapshot = await container.submit_bulk_create_hospitals_use_case.execute(raw_csv)
     return _to_batch_response(snapshot)
-
-
-@router.post(
-    "/hospitals/bulk/validate",
-    response_model=CsvValidationResponse,
-)
-async def validate_bulk_csv(
-    file: Annotated[UploadFile, File(...)],
-    container: Annotated[AppContainer, Depends(get_container)],
-) -> CsvValidationResponse:
-    raw_csv = await file.read()
-    summary = container.validate_csv_use_case.execute(raw_csv)
-    return _to_csv_validation_response(summary)
 
 
 @router.get("/batches/{batch_id}", response_model=BatchResponse)
@@ -80,13 +62,4 @@ def _to_batch_response(snapshot: BatchSnapshot) -> BatchResponse:
             )
             for hospital in snapshot.hospitals
         ],
-    )
-
-
-def _to_csv_validation_response(summary: CsvValidationSummary) -> CsvValidationResponse:
-    return CsvValidationResponse(
-        valid=summary.valid,
-        total_hospitals=summary.total_hospitals,
-        max_hospitals=summary.max_hospitals,
-        columns=list(summary.columns),
     )

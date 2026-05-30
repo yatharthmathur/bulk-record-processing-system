@@ -36,13 +36,6 @@ class BatchResponse(BaseModel):
     hospitals: list[HospitalResultResponse]
 
 
-class CsvValidationResponse(BaseModel):
-    valid: bool
-    total_hospitals: int
-    max_hospitals: int
-    columns: list[str]
-
-
 class HealthResponse(BaseModel):
     status: str
     service: str
