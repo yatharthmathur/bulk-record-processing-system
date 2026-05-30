@@ -5,16 +5,16 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from app.application.services.csv_parser import CsvHospitalParser
+from app.application.services.csv_parser import HospitalCsvParser
 from app.application.services.retry import AsyncRetryExecutor, RetryPolicy
-from app.application.use_cases.bulk_create_hospitals import BulkCreateHospitalsUseCase
-from app.application.use_cases.get_batch_status import GetBatchStatusUseCase
-from app.application.use_cases.submit_bulk_create_hospitals import (
-    SubmitBulkCreateHospitalsUseCase,
+from app.application.use_cases.bulk_create import BulkCreateUseCase
+from app.application.use_cases.get_status import GetBatchStatusUseCase
+from app.application.use_cases.submit_task import (
+    SubmitBulkCreateTaskUseCase,
 )
 from app.bootstrap import AppContainer
 from app.domain.models import BulkCreateBatchJob, ExternalHospital, HospitalRow
-from app.infrastructure.repositories.in_memory_batch_repository import (
+from app.infrastructure.repositories.in_memory import (
     InMemoryBatchRepository,
 )
 from app.infrastructure.settings import Settings
@@ -66,8 +66,8 @@ def build_test_client() -> TestClient:
     settings = Settings(batch_task_backend="in_memory")
     repository = InMemoryBatchRepository()
     gateway = FakeHospitalDirectoryGateway()
-    parser = CsvHospitalParser(max_hospitals=settings.max_csv_hospitals)
-    processor = BulkCreateHospitalsUseCase(
+    parser = HospitalCsvParser(max_hospitals=settings.max_csv_hospitals)
+    processor = BulkCreateUseCase(
         batch_repository=repository,
         hospital_directory_gateway=gateway,
         retry_executor=AsyncRetryExecutor(
@@ -85,7 +85,7 @@ def build_test_client() -> TestClient:
         batch_repository=repository,
         batch_task_dispatcher=dispatcher,
         hospital_directory_gateway=gateway,
-        submit_bulk_create_hospitals_use_case=SubmitBulkCreateHospitalsUseCase(
+        submit_bulk_create_hospitals_use_case=SubmitBulkCreateTaskUseCase(
             batch_repository=repository,
             batch_task_dispatcher=dispatcher,
             csv_parser=parser,

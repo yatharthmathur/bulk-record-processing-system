@@ -5,10 +5,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, UploadFile
 
-from app.api.dependencies import get_container
-from app.api.schemas import BatchResponse, HealthResponse, HospitalResultResponse
+from app.api.app_containers import get_container
+from app.api.schemas import BatchResponse, HealthResponse
+from app.api.utils import to_batch_response
 from app.bootstrap import AppContainer
-from app.domain.models import BatchSnapshot
 
 router = APIRouter()
 
@@ -27,39 +27,13 @@ async def bulk_create_hospitals(
 ) -> BatchResponse:
     raw_csv = await file.read()
     snapshot = await container.submit_bulk_create_hospitals_use_case.execute(raw_csv)
-    return _to_batch_response(snapshot)
+    return to_batch_response(snapshot)
 
 
 @router.get("/batches/{batch_id}", response_model=BatchResponse)
-async def get_batch_status(
+async def get_status(
     batch_id: UUID,
     container: Annotated[AppContainer, Depends(get_container)],
 ) -> BatchResponse:
     snapshot = await container.get_batch_status_use_case.execute(batch_id)
-    return _to_batch_response(snapshot)
-
-
-def _to_batch_response(snapshot: BatchSnapshot) -> BatchResponse:
-    return BatchResponse(
-        batch_id=snapshot.batch_id,
-        total_hospitals=snapshot.total_hospitals,
-        processed_hospitals=snapshot.processed_hospitals,
-        failed_hospitals=snapshot.failed_hospitals,
-        processing_time_seconds=snapshot.processing_time_seconds,
-        batch_activated=snapshot.batch_activated,
-        progress_percentage=snapshot.progress_percentage,
-        status=snapshot.status.value,
-        started_at=snapshot.started_at,
-        completed_at=snapshot.completed_at,
-        hospitals=[
-            HospitalResultResponse(
-                row=hospital.row,
-                hospital_id=hospital.hospital_id,
-                name=hospital.name,
-                status=hospital.status,
-                attempts=hospital.attempts,
-                error=hospital.error,
-            )
-            for hospital in snapshot.hospitals
-        ],
-    )
+    return to_batch_response(snapshot)

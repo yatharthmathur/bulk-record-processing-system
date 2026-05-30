@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from typing_extensions import override
 
-from app.application.ports.batch_task_dispatcher import BatchTaskDispatcher
+from app.application.ports.task_dispatchers import BatchTaskDispatcher
 from app.domain.models import BulkCreateBatchJob
 
 logger = logging.getLogger(__name__)

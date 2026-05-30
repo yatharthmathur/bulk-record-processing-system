@@ -20,13 +20,28 @@ A FastAPI service for bulk hospital creation against the external Hospital Direc
 
 ```text
 app/
-  api/                FastAPI routes, schemas, dependency access
+  api/                    FastAPI routes, response schemas, container helpers, response utils
   application/
-    ports/            Protocol-based interfaces for repositories, gateways, and task dispatch
-    services/         Reusable application services (CSV parsing, retry policy)
-    use_cases/        Submit batch, process batch, validate CSV, get status
-  domain/             Core models and domain exceptions
-  infrastructure/     External API adapter, settings, repository, serialization, task dispatcher
+    ports/                Protocol interfaces
+      repositories.py     BatchRepository
+      external_apis.py    HospitalDirectoryGateway
+      task_dispatchers.py BatchTaskDispatcher
+    services/             Reusable services (HospitalCsvParser, AsyncRetryExecutor)
+    use_cases/
+      submit_task.py      SubmitBulkCreateTaskUseCase (validate + queue)
+      bulk_create.py      BulkCreateUseCase (concurrent creation + activation)
+      get_status.py       GetBatchStatusUseCase
+  domain/                 Core models and exceptions
+  infrastructure/
+    clients/              external_api.py  HospitalDirectoryApiGateway
+    repositories/         in_memory.py, redis.py
+    serializers/          utils.py  JSON serialization for batch models
+    task_dispatchers/     in_memory.py, celery.py
+    settings.py           Settings (env-driven)
+    utils.py              build_http_client, build_batch_repository factories
+  workers/
+    tasks.py              Celery app + process_bulk_batch task
+    constants.py          TASK_NAME
 ```
 
 ### Background processing flow
@@ -45,8 +60,8 @@ app/
 
 The app now separates **submission** from **execution**:
 
-- `SubmitBulkCreateHospitalsUseCase` validates input and enqueues work
-- `BulkCreateHospitalsUseCase` performs the actual processing
+- `SubmitBulkCreateTaskUseCase` validates input and enqueues work
+- `BulkCreateUseCase` performs the actual processing
 - `BatchTaskDispatcher` is the port for the execution backend
 
 Built-in task dispatcher adapters:
@@ -57,7 +72,7 @@ Built-in batch repository adapters:
 - `InMemoryBatchRepository`
 - `RedisBatchRepository`
 
-The Celery worker entrypoint lives in `app/worker/celery_app.py` and consumes jobs from Redis-backed Celery queues.
+The Celery worker entrypoint lives in `app/workers/tasks.py` and consumes jobs from Redis-backed Celery queues.
 
 To move to SQS + workers, Redis Queue, or another execution system, implement the `BatchTaskDispatcher` port and wire it in `app/bootstrap.py`.
 
@@ -143,7 +158,7 @@ export REDIS_BATCH_KEY_PREFIX=batch
 export CELERY_BROKER_URL=redis://localhost:6379/1
 export CELERY_RESULT_BACKEND_URL=redis://localhost:6379/2
 export CELERY_QUEUE_NAME=bulk_hospital_jobs
-uv run celery -A app.worker.celery_app.celery_app worker --loglevel=info --queues=bulk_hospital_jobs
+uv run celery -A app.workers.tasks.celery_app worker --loglevel=info --queues=bulk_hospital_jobs
 ```
 
 If Redis is running in Docker, a simple option is:

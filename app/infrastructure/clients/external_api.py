@@ -7,7 +7,7 @@ from uuid import UUID
 import httpx
 from typing_extensions import override
 
-from app.application.ports.hospital_directory_gateway import HospitalDirectoryGateway
+from app.application.ports.external_apis import HospitalDirectoryGateway
 from app.domain.exceptions import ExternalServiceError
 from app.domain.models import ExternalHospital, HospitalRow
 

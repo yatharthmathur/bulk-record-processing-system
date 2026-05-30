@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from app.application.ports.batch_repository import BatchRepository
+from app.application.ports.repositories import BatchRepository
 from app.domain.exceptions import BatchNotFoundError
 from app.domain.models import BatchSnapshot
 

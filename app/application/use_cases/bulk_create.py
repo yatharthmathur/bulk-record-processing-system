@@ -5,8 +5,8 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID
 
-from app.application.ports.batch_repository import BatchRepository
-from app.application.ports.hospital_directory_gateway import HospitalDirectoryGateway
+from app.application.ports.external_apis import HospitalDirectoryGateway
+from app.application.ports.repositories import BatchRepository
 from app.application.services.retry import AsyncRetryExecutor
 from app.domain.exceptions import BatchNotFoundError, ExternalServiceError
 from app.domain.models import (
@@ -18,7 +18,7 @@ from app.domain.models import (
 )
 
 
-class BulkCreateHospitalsUseCase:
+class BulkCreateUseCase:
     def __init__(
         self,
         batch_repository: BatchRepository,

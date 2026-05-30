@@ -6,22 +6,18 @@ from typing import cast
 
 import httpx
 
-from app.application.ports.batch_repository import BatchRepository
-from app.application.ports.batch_task_dispatcher import BatchTaskDispatcher
-from app.application.ports.hospital_directory_gateway import HospitalDirectoryGateway
-from app.application.services.csv_parser import CsvHospitalParser
+from app.application.ports.external_apis import HospitalDirectoryGateway
+from app.application.ports.repositories import BatchRepository
+from app.application.ports.task_dispatchers import BatchTaskDispatcher
+from app.application.services.csv_parser import HospitalCsvParser
 from app.application.services.retry import AsyncRetryExecutor, RetryPolicy
-from app.application.use_cases.bulk_create_hospitals import BulkCreateHospitalsUseCase
-from app.application.use_cases.get_batch_status import GetBatchStatusUseCase
-from app.application.use_cases.submit_bulk_create_hospitals import (
-    SubmitBulkCreateHospitalsUseCase,
+from app.application.use_cases.bulk_create import BulkCreateUseCase
+from app.application.use_cases.get_status import GetBatchStatusUseCase
+from app.application.use_cases.submit_task import (
+    SubmitBulkCreateTaskUseCase,
 )
 from app.domain.models import BulkCreateBatchJob
-from app.infrastructure.bootstrap_support import (
-    build_batch_repository,
-    build_http_client,
-)
-from app.infrastructure.clients.hospital_directory_api import (
+from app.infrastructure.clients.external_api import (
     HospitalDirectoryApiGateway,
 )
 from app.infrastructure.settings import Settings
@@ -32,7 +28,12 @@ from app.infrastructure.task_dispatchers.celery import (
 from app.infrastructure.task_dispatchers.in_memory import (
     InMemoryBackgroundBatchTaskDispatcher,
 )
-from app.worker.celery_app import TASK_NAME, celery_app
+from app.infrastructure.utils import (
+    build_batch_repository,
+    build_http_client,
+)
+from app.workers.constants import TASK_NAME
+from app.workers.tasks import celery_app
 
 
 @dataclass(slots=True)
@@ -41,8 +42,8 @@ class AppContainer:
     batch_repository: BatchRepository
     batch_task_dispatcher: BatchTaskDispatcher
     hospital_directory_gateway: HospitalDirectoryGateway
-    submit_bulk_create_hospitals_use_case: SubmitBulkCreateHospitalsUseCase
-    bulk_create_hospitals_use_case: BulkCreateHospitalsUseCase
+    submit_bulk_create_hospitals_use_case: SubmitBulkCreateTaskUseCase
+    bulk_create_hospitals_use_case: BulkCreateUseCase
     get_batch_status_use_case: GetBatchStatusUseCase
     http_client: httpx.AsyncClient | None = None
 
@@ -52,7 +53,7 @@ async def build_container(settings: Settings | None = None) -> AppContainer:
     http_client = build_http_client(app_settings)
     batch_repository = build_batch_repository(app_settings)
     hospital_directory_gateway = HospitalDirectoryApiGateway(http_client)
-    csv_parser = CsvHospitalParser(max_hospitals=app_settings.max_csv_hospitals)
+    csv_parser = HospitalCsvParser(max_hospitals=app_settings.max_csv_hospitals)
     retry_executor = AsyncRetryExecutor(
         RetryPolicy(
             max_attempts=app_settings.retry_max_attempts,
@@ -61,7 +62,7 @@ async def build_container(settings: Settings | None = None) -> AppContainer:
             max_delay_seconds=app_settings.retry_max_delay_seconds,
         )
     )
-    bulk_create_hospitals_use_case = BulkCreateHospitalsUseCase(
+    bulk_create_hospitals_use_case = BulkCreateUseCase(
         batch_repository=batch_repository,
         hospital_directory_gateway=hospital_directory_gateway,
         retry_executor=retry_executor,
@@ -81,7 +82,7 @@ async def build_container(settings: Settings | None = None) -> AppContainer:
         batch_repository=batch_repository,
         batch_task_dispatcher=batch_task_dispatcher,
         hospital_directory_gateway=hospital_directory_gateway,
-        submit_bulk_create_hospitals_use_case=SubmitBulkCreateHospitalsUseCase(
+        submit_bulk_create_hospitals_use_case=SubmitBulkCreateTaskUseCase(
             batch_repository=batch_repository,
             batch_task_dispatcher=batch_task_dispatcher,
             csv_parser=csv_parser,

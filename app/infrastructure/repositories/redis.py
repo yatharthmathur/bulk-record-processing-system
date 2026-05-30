@@ -8,10 +8,10 @@ from uuid import UUID
 from redis.asyncio import Redis
 from typing_extensions import override
 
-from app.application.ports.batch_repository import BatchRepository
+from app.application.ports.repositories import BatchRepository
 from app.domain.models import BatchSnapshot
-from app.infrastructure.serialization.batches import (
-    JSONObject,
+from app.infrastructure.serializers.types import JSONObject
+from app.infrastructure.serializers.utils import (
     batch_snapshot_from_dict,
     batch_snapshot_to_dict,
 )

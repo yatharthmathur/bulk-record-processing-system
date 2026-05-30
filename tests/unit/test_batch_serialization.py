@@ -10,7 +10,7 @@ from app.domain.models import (
     HospitalProcessingResult,
     HospitalRow,
 )
-from app.infrastructure.serialization.batches import (
+from app.infrastructure.serializers.utils import (
     batch_snapshot_from_dict,
     batch_snapshot_to_dict,
     bulk_create_batch_job_from_dict,

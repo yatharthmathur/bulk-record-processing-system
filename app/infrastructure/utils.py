@@ -4,11 +4,11 @@ from __future__ import annotations
 import httpx
 from redis.asyncio import Redis
 
-from app.application.ports.batch_repository import BatchRepository
-from app.infrastructure.repositories.in_memory_batch_repository import (
+from app.application.ports.repositories import BatchRepository
+from app.infrastructure.repositories.in_memory import (
     InMemoryBatchRepository,
 )
-from app.infrastructure.repositories.redis_batch_repository import RedisBatchRepository
+from app.infrastructure.repositories.redis import RedisBatchRepository
 from app.infrastructure.settings import Settings
 
 
