@@ -7,4 +7,5 @@ venv/
 .env
 .coverage
 htmlcov/
+reports/
 .DS_Store
