@@ -33,6 +33,7 @@ def batch_snapshot_to_dict(snapshot: BatchSnapshot) -> JSONObject:
             else None
         ),
         "processing_time_seconds": snapshot.processing_time_seconds,
+        "file_md5": snapshot.file_md5,
     }
 
 
@@ -53,6 +54,7 @@ def batch_snapshot_from_dict(data: Mapping[str, JSONValue]) -> BatchSnapshot:
         started_at=datetime.fromisoformat(_require_str(data, "started_at")),
         completed_at=_optional_datetime(data.get("completed_at")),
         processing_time_seconds=_optional_float(data.get("processing_time_seconds")),
+        file_md5=_optional_str(data.get("file_md5")),
     )
 
 

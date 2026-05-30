@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -22,8 +23,19 @@ class SubmitBulkCreateTaskUseCase:
 
     async def execute(self, raw_csv: bytes) -> BatchSnapshot:
         hospitals = self._csv_parser.parse(raw_csv)
+        batch_id = uuid4()
+        file_md5 = hashlib.md5(raw_csv, usedforsecurity=False).hexdigest()
+
+        existing_batch_id = await self._batch_repository.claim_in_flight_file_md5(
+            file_md5, batch_id
+        )
+        if existing_batch_id is not None:
+            existing_snapshot = await self._batch_repository.get(existing_batch_id)
+            if existing_snapshot is not None:
+                return existing_snapshot
+
         snapshot = BatchSnapshot(
-            batch_id=uuid4(),
+            batch_id=batch_id,
             total_hospitals=len(hospitals),
             processed_hospitals=0,
             failed_hospitals=0,
@@ -31,6 +43,7 @@ class SubmitBulkCreateTaskUseCase:
             status=BatchStatus.QUEUED,
             hospitals=tuple(),
             started_at=datetime.now(UTC),
+            file_md5=file_md5,
         )
         await self._batch_repository.save(snapshot)
         job = BulkCreateBatchJob(batch_id=snapshot.batch_id, hospitals=tuple(hospitals))

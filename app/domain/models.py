@@ -70,6 +70,7 @@ class BatchSnapshot:
     started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     processing_time_seconds: float | None = None
+    file_md5: str | None = None
 
     @property
     def attempted_hospitals(self) -> int:

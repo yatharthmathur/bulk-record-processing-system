@@ -230,3 +230,44 @@ async def test_bulk_create_retries_activation_before_marking_failure() -> None:
     assert snapshot.hospitals[0].status == "created_activation_failed"
     assert snapshot.hospitals[0].attempts == 3
     assert gateway.activation_attempts == 3
+
+
+@pytest.mark.asyncio
+async def test_bulk_create_releases_in_flight_file_md5_after_terminal_save() -> None:
+    repository = InMemoryBatchRepository()
+    batch_id = uuid4()
+    file_md5 = "release-me"
+    await repository.save(
+        BatchSnapshot(
+            batch_id=batch_id,
+            total_hospitals=1,
+            processed_hospitals=0,
+            failed_hospitals=0,
+            batch_activated=False,
+            status=BatchStatus.QUEUED,
+            file_md5=file_md5,
+        )
+    )
+    _ = await repository.claim_in_flight_file_md5(file_md5, batch_id)
+    use_case = BulkCreateUseCase(
+        batch_repository=repository,
+        hospital_directory_gateway=FakeHospitalDirectoryGateway(),
+        retry_executor=AsyncRetryExecutor(
+            RetryPolicy(max_attempts=3),
+            sleep_func=no_sleep,
+        ),
+        max_concurrent_requests=4,
+    )
+
+    _ = await use_case.execute(
+        BulkCreateBatchJob(
+            batch_id=batch_id,
+            hospitals=(
+                HospitalRow(
+                    row=1, name="General Hospital", address="123 Main St", phone=None
+                ),
+            ),
+        )
+    )
+
+    assert await repository.claim_in_flight_file_md5(file_md5, uuid4()) is None
