@@ -12,7 +12,6 @@ from app.application.use_cases.get_batch_status import GetBatchStatusUseCase
 from app.application.use_cases.submit_bulk_create_hospitals import (
     SubmitBulkCreateHospitalsUseCase,
 )
-from app.application.use_cases.validate_csv import ValidateCsvUseCase
 from app.bootstrap import AppContainer
 from app.domain.models import BulkCreateBatchJob, ExternalHospital, HospitalRow
 from app.infrastructure.repositories.in_memory_batch_repository import (
@@ -93,7 +92,6 @@ def build_test_client() -> TestClient:
         ),
         bulk_create_hospitals_use_case=processor,
         get_batch_status_use_case=GetBatchStatusUseCase(batch_repository=repository),
-        validate_csv_use_case=ValidateCsvUseCase(csv_parser=parser),
     )
     return TestClient(create_app(container))
 
@@ -130,10 +128,10 @@ def test_bulk_create_endpoint_returns_queued_batch_and_status_can_be_polled() ->
         assert batch_payload["hospitals"][0]["attempts"] == 1
 
 
-def test_validate_endpoint_rejects_invalid_csv() -> None:
+def test_bulk_create_endpoint_rejects_invalid_csv() -> None:
     with build_test_client() as client:
         response = client.post(
-            "/hospitals/bulk/validate",
+            "/hospitals/bulk",
             files={
                 "file": (
                     "bad.csv",

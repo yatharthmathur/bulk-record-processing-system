@@ -15,7 +15,6 @@ from app.application.use_cases.get_batch_status import GetBatchStatusUseCase
 from app.application.use_cases.submit_bulk_create_hospitals import (
     SubmitBulkCreateHospitalsUseCase,
 )
-from app.application.use_cases.validate_csv import ValidateCsvUseCase
 from app.domain.models import BulkCreateBatchJob
 from app.infrastructure.clients.hospital_directory_api import (
     HospitalDirectoryApiGateway,
@@ -38,7 +37,6 @@ class AppContainer:
     submit_bulk_create_hospitals_use_case: SubmitBulkCreateHospitalsUseCase
     bulk_create_hospitals_use_case: BulkCreateHospitalsUseCase
     get_batch_status_use_case: GetBatchStatusUseCase
-    validate_csv_use_case: ValidateCsvUseCase
     http_client: httpx.AsyncClient | None = None
 
 
@@ -88,7 +86,6 @@ async def build_container(settings: Settings | None = None) -> AppContainer:
         get_batch_status_use_case=GetBatchStatusUseCase(
             batch_repository=batch_repository
         ),
-        validate_csv_use_case=ValidateCsvUseCase(csv_parser=csv_parser),
         http_client=http_client,
     )
 

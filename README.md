@@ -10,7 +10,7 @@ A FastAPI service for bulk hospital creation against the external Hospital Direc
 - Automatic retries with exponential backoff for hospital creation and batch activation
 - Configurable task-dispatch port so the background runner can be replaced with Celery, SQS + workers, or another queue backend
 - In-memory batch tracking with `GET /batches/{batch_id}`
-- CSV validation endpoint: `POST /hospitals/bulk/validate`
+- CSV validation is built directly into `POST /hospitals/bulk`
 - Ports and adapters architecture with clear separation between domain, application, API, and infrastructure
 - Docker, `uv`, and pre-commit support
 - Unit and integration tests
@@ -97,8 +97,7 @@ Example response:
 Returns the latest stored status for a processed batch.
 Each hospital result includes `attempts` so retry behavior is visible.
 
-### `POST /hospitals/bulk/validate`
-Validates CSV shape without calling the external API.
+
 
 ## Local development
 
