@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from app.application.services.csv_parser import CsvHospitalParser
-from app.application.use_cases.submit_bulk_create_hospitals import (
-    SubmitBulkCreateHospitalsUseCase,
+from app.application.services.csv_parser import HospitalCsvParser
+from app.application.use_cases.submit_task import (
+    SubmitBulkCreateTaskUseCase,
 )
 from app.domain.models import BatchStatus, BulkCreateBatchJob
-from app.infrastructure.repositories.in_memory_batch_repository import (
+from app.infrastructure.repositories.in_memory import (
     InMemoryBatchRepository,
 )
 
@@ -27,10 +27,10 @@ class FakeBatchTaskDispatcher:
 async def test_submit_bulk_create_persists_queued_batch_and_dispatches_job() -> None:
     repository = InMemoryBatchRepository()
     dispatcher = FakeBatchTaskDispatcher()
-    use_case = SubmitBulkCreateHospitalsUseCase(
+    use_case = SubmitBulkCreateTaskUseCase(
         batch_repository=repository,
         batch_task_dispatcher=dispatcher,
-        csv_parser=CsvHospitalParser(max_hospitals=20),
+        csv_parser=HospitalCsvParser(max_hospitals=20),
     )
 
     snapshot = await use_case.execute(

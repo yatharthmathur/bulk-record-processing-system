@@ -9,7 +9,7 @@ from app.domain.exceptions import CsvValidationError
 from app.domain.models import CsvValidationSummary, HospitalRow
 
 
-class CsvHospitalParser:
+class HospitalCsvParser:
     REQUIRED_HEADERS: ClassVar[tuple[str, str]] = ("name", "address")
     OPTIONAL_HEADERS: ClassVar[tuple[str]] = ("phone",)
     ALLOWED_HEADERS: ClassVar[tuple[str, str, str]] = (

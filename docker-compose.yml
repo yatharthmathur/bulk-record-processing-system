@@ -37,7 +37,7 @@ services:
         "run",
         "celery",
         "-A",
-        "app.worker.celery_app.celery_app",
+        "app.workers.tasks.celery_app",
         "worker",
         "--loglevel=info",
         "--queues=bulk_hospital_jobs",

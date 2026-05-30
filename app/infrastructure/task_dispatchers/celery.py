@@ -4,9 +4,9 @@ from typing import Protocol
 
 from typing_extensions import override
 
-from app.application.ports.batch_task_dispatcher import BatchTaskDispatcher
+from app.application.ports.task_dispatchers import BatchTaskDispatcher
 from app.domain.models import BulkCreateBatchJob
-from app.infrastructure.serialization.batches import bulk_create_batch_job_to_dict
+from app.infrastructure.serializers.utils import bulk_create_batch_job_to_dict
 
 
 class CeleryTaskSender(Protocol):

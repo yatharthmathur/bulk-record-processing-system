@@ -5,7 +5,7 @@ from uuid import UUID
 
 from typing_extensions import override
 
-from app.application.ports.batch_repository import BatchRepository
+from app.application.ports.repositories import BatchRepository
 from app.domain.models import BatchSnapshot
 
 

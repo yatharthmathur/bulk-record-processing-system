@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.application.services.retry import AsyncRetryExecutor, RetryPolicy
-from app.application.use_cases.bulk_create_hospitals import BulkCreateHospitalsUseCase
+from app.application.use_cases.bulk_create import BulkCreateUseCase
 from app.domain.exceptions import ExternalServiceError
 from app.domain.models import (
     BatchSnapshot,
@@ -14,7 +14,7 @@ from app.domain.models import (
     ExternalHospital,
     HospitalRow,
 )
-from app.infrastructure.repositories.in_memory_batch_repository import (
+from app.infrastructure.repositories.in_memory import (
     InMemoryBatchRepository,
 )
 
@@ -85,7 +85,7 @@ async def test_bulk_create_successfully_creates_and_activates_batch() -> None:
     repository = InMemoryBatchRepository()
     batch_id = uuid4()
     await seed_batch(repository, batch_id, hospitals_count=2)
-    use_case = BulkCreateHospitalsUseCase(
+    use_case = BulkCreateUseCase(
         batch_repository=repository,
         hospital_directory_gateway=gateway,
         retry_executor=AsyncRetryExecutor(
@@ -129,7 +129,7 @@ async def test_bulk_create_retries_failed_row_and_then_succeeds() -> None:
     repository = InMemoryBatchRepository()
     batch_id = uuid4()
     await seed_batch(repository, batch_id, hospitals_count=1)
-    use_case = BulkCreateHospitalsUseCase(
+    use_case = BulkCreateUseCase(
         batch_repository=repository,
         hospital_directory_gateway=gateway,
         retry_executor=AsyncRetryExecutor(
@@ -164,7 +164,7 @@ async def test_bulk_create_fails_after_max_attempts_and_does_not_activate() -> N
     repository = InMemoryBatchRepository()
     batch_id = uuid4()
     await seed_batch(repository, batch_id, hospitals_count=2)
-    use_case = BulkCreateHospitalsUseCase(
+    use_case = BulkCreateUseCase(
         batch_repository=repository,
         hospital_directory_gateway=gateway,
         retry_executor=AsyncRetryExecutor(
@@ -202,7 +202,7 @@ async def test_bulk_create_retries_activation_before_marking_failure() -> None:
     repository = InMemoryBatchRepository()
     batch_id = uuid4()
     await seed_batch(repository, batch_id, hospitals_count=1)
-    use_case = BulkCreateHospitalsUseCase(
+    use_case = BulkCreateUseCase(
         batch_repository=repository,
         hospital_directory_gateway=gateway,
         retry_executor=AsyncRetryExecutor(

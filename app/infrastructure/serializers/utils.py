@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
-from typing import TypeAlias, cast
+from typing import cast
 from uuid import UUID
 
 from app.domain.models import (
@@ -12,10 +12,7 @@ from app.domain.models import (
     HospitalProcessingResult,
     HospitalRow,
 )
-
-JSONScalar: TypeAlias = str | int | float | bool | None
-JSONValue: TypeAlias = JSONScalar | dict[str, "JSONValue"] | list["JSONValue"]
-JSONObject: TypeAlias = dict[str, JSONValue]
+from app.infrastructure.serializers.types import JSONObject, JSONValue
 
 
 def batch_snapshot_to_dict(snapshot: BatchSnapshot) -> JSONObject:
